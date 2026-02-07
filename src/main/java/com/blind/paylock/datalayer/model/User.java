@@ -1,5 +1,6 @@
 package com.blind.paylock.datalayer.model;
 
+import com.blind.paylock.utils.enums.UserRoles;
 import com.blind.paylock.utils.enums.UserStatus;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -44,6 +45,12 @@ public class User implements Persistable<UUID> {
   @Transient
   @Builder.Default
   private boolean isNew = true;
+
+  @NotNull
+  private String password;   // BCrypt hash
+
+  @NotNull
+  private UserRoles role;
 
   @Override
   public boolean isNew() {

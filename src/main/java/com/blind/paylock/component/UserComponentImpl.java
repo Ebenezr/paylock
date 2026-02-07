@@ -2,6 +2,7 @@ package com.blind.paylock.component;
 
 import com.blind.paylock.datalayer.dto.request.UserCreateRequestDto;
 import com.blind.paylock.datalayer.model.User;
+import com.blind.paylock.utils.enums.UserRoles;
 import com.blind.paylock.utils.enums.UserStatus;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +19,7 @@ public class UserComponentImpl implements UserComponent {
                 .name(request.getName())
                 .email(request.getEmail())
                 .status(UserStatus.ACTIVE)
+                .role(UserRoles.USER)
                 .createdAt(LocalDateTime.now())
                 .build();
     }

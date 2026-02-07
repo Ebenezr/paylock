@@ -9,14 +9,15 @@ import com.blind.paylock.datalayer.model.Wallet;
 import com.blind.paylock.repository.UserRepository;
 import com.blind.paylock.repository.WalletRepository;
 import com.blind.paylock.service.UserService;
+import com.blind.paylock.utils.ReactiveSecurityUtil;
 import com.blind.paylock.utils.apis.ApiResponse;
 import com.blind.paylock.utils.apis.ResponseFactory;
+import com.blind.paylock.utils.enums.UserRoles;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-
-import java.util.UUID;
 
 @Service
 @AllArgsConstructor
@@ -25,6 +26,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final WalletRepository walletRepository;
     private final UserComponent userComponent;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public Mono<ApiResponse<UserResponseDto>> registerUser(
@@ -43,6 +45,9 @@ public class UserServiceImpl implements UserService {
                 .switchIfEmpty(Mono.defer(() -> {
 
                     User newUser = userComponent.buildNewUser(request);
+                    newUser.setPassword(passwordEncoder.encode(request.getPassword()));
+                    newUser.setRole(UserRoles.valueOf("USER"));
+
                     Wallet wallet = new Wallet(newUser.getId());
 
                     return userRepository.save(newUser)
@@ -67,29 +72,30 @@ public class UserServiceImpl implements UserService {
     public Mono<ApiResponse<UserProfileResponseDto>> getUserProfile(
             String requestRefId
     ) {
-        // TEMP: replace later with auth context
-        UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000001");
-
-        return userRepository.findById(userId)
-                .flatMap(user ->
-                        ResponseFactory.success(
-                                UserProfileResponseDto.builder()
-                                        .userId(user.getId().toString())
-                                        .name(user.getName())
-                                        .email(user.getEmail())
-                                        .status(user.getStatus())
-                                        .createdAt(user.getCreatedAt())
-                                        .build(),
-                                requestRefId
-                        )
+        return ReactiveSecurityUtil.currentUserId()
+                .flatMap(userId ->
+                        userRepository.findById(userId)
+                                .flatMap(user ->
+                                        ResponseFactory.success(
+                                                UserProfileResponseDto.builder()
+                                                        .userId(user.getId().toString())
+                                                        .name(user.getName())
+                                                        .email(user.getEmail())
+                                                        .status(user.getStatus())
+                                                        .createdAt(user.getCreatedAt())
+                                                        .build(),
+                                                requestRefId
+                                        )
+                                )
                 )
                 .switchIfEmpty(
                         ResponseFactory.errorMono(
-                                HttpStatus.NOT_FOUND,
-                                "USER_NOT_FOUND",
-                                "User not found",
+                                HttpStatus.UNAUTHORIZED,
+                                "UNAUTHORIZED",
+                                "User not authenticated",
                                 requestRefId
                         )
                 );
     }
+
 }

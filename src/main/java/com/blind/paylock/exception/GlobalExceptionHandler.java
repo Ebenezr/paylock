@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.support.WebExchangeBindException;
 
 @Slf4j
 @RestControllerAdvice
@@ -33,6 +34,22 @@ public class GlobalExceptionHandler {
                 .stream()
                 .findFirst()
                 .map(error -> error.getField() + " " + error.getDefaultMessage())
+                .orElse("Invalid request");
+
+        return ResponseFactory.error(
+                "VALIDATION_ERROR",
+                message,
+                HttpStatus.BAD_REQUEST
+        );
+    }
+
+    @ExceptionHandler(WebExchangeBindException.class)
+    public ResponseEntity<ApiResponse<Object>> handleWebExchangeBindException(WebExchangeBindException ex) {
+        String message = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .findFirst()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .orElse("Invalid request");
 
         return ResponseFactory.error(
