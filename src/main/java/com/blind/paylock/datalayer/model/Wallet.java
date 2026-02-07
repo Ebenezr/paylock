@@ -1,16 +1,16 @@
-package com.blind.paylock.datalayer.models;
+package com.blind.paylock.datalayer.model;
 
-import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Entity
-@Table(name = "wallets")
+@Table("wallets")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -23,9 +23,15 @@ public class Wallet {
 
   @NotNull(message = "Balance is required")
   @DecimalMin(value = "0.00", message = "Balance cannot be negative")
-  @Column(nullable = false)
   private BigDecimal balance;
 
   @NotNull(message = "Updated date is required")
   private LocalDateTime updatedAt;
+
+  /** Convenience constructor */
+  public Wallet(UUID userId) {
+    this.userId = userId;
+    this.balance = BigDecimal.ZERO;
+    this.updatedAt = LocalDateTime.now();
+  }
 }

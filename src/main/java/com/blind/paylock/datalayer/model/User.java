@@ -1,18 +1,19 @@
-package com.blind.paylock.datalayer.models;
+package com.blind.paylock.datalayer.model;
 
-import jakarta.persistence.*;
+import com.blind.paylock.utils.enums.UserStatus;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Entity
-@Table(name = "users")
+@Table("users")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -25,13 +26,15 @@ public class User {
   @NotBlank(message = "User name is required")
   @Size(min = 2, max = 100, message = "User name must be between 2 and 100 characters")
   @Pattern(regexp = "^[a-zA-Z ]+$", message = "Only letters and spaces are allowed for user name")
-  @Column(nullable = false)
   private String name;
 
   @NotBlank(message = "Email is required")
   @Email(message = "Invalid email format")
-  @Column(nullable = false, unique = true)
   private String email;
+
+
+  @NotNull
+  private UserStatus status;
 
   @NotNull(message = "Created date is required")
   private LocalDateTime createdAt;

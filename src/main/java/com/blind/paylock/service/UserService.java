@@ -10,8 +10,8 @@ import reactor.core.publisher.Mono;
 public interface UserService {
 
     Mono<ApiResponse<UserResponseDto>> registerUser(
-        UserCreateRequestDto request
+        UserCreateRequestDto request,  String requestRefId
     );
 
-    Mono<ApiResponse<UserProfileResponseDto>> getUserProfile();
+    Mono<ApiResponse<UserProfileResponseDto>> getUserProfile(  String requestRefId);
 }
