@@ -8,6 +8,7 @@ import com.blind.paylock.datalayer.model.Event;
 import com.blind.paylock.exception.InvalidStateException;
 import com.blind.paylock.exception.NotFoundException;
 import com.blind.paylock.repository.EventRepository;
+import com.blind.paylock.repository.ReservationRepository;
 import com.blind.paylock.repository.TicketTypeRepository;
 import com.blind.paylock.service.EventService;
 import com.blind.paylock.utils.apis.ApiResponse;
@@ -27,6 +28,7 @@ public class EventServiceImpl implements EventService {
 
     private final EventRepository eventRepository;
     private final TicketTypeRepository ticketTypeRepository;
+    private final ReservationRepository reservationRepository;
 
     @Override
     public Mono<ApiResponse<EventResponseDto>> createEvent(
@@ -93,15 +95,20 @@ public class EventServiceImpl implements EventService {
         return eventRepository.findAllByStatus(EventStatus.PUBLISHED)
                 .flatMap(event ->
                         ticketTypeRepository.findAllByEventId(event.getId())
-                                .map(tt ->
-                                        TicketAvailabilityDto.builder()
-                                                .ticketTypeId(tt.getId().toString())
-                                                .name(tt.getName())
-                                                .price(tt.getPrice())
-                                                .totalQuantity(tt.getTotalQuantity())
-                                                .availableQuantity(tt.getTotalQuantity()) // derived later
-                                                .build()
-                                )
+                                .flatMap(tt ->
+                                        reservationRepository
+                                                .sumReservedQuantity(tt.getId())
+                                                .map(reserved ->
+                                                        TicketAvailabilityDto.builder()
+                                                                .ticketTypeId(tt.getId().toString())
+                                                                .name(tt.getName())
+                                                                .price(tt.getPrice())
+                                                                .totalQuantity(tt.getTotalQuantity())
+                                                                .availableQuantity(
+                                                                        tt.getTotalQuantity() - reserved
+                                                                )
+                                                                .build()
+                                ))
                                 .collectList()
                                 .map(ticketTypes ->
                                         EventListItemResponseDto.builder()
