@@ -33,6 +33,7 @@ public class SecurityConfig {
             .authorizeExchange(exchanges -> exchanges
                 .pathMatchers("/api/v1/auth/**").permitAll()
                 .pathMatchers(HttpMethod.POST, "/api/v1/users").permitAll()
+                .pathMatchers(HttpMethod.GET, "/api/v1/events").permitAll()
                 .anyExchange().authenticated()
             )
 
