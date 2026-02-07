@@ -13,7 +13,5 @@ public interface UserService {
         UserCreateRequestDto request
     );
 
-    Mono<ApiResponse<UserProfileResponseDto>> getUserProfile(
-
-    );
+    Mono<ApiResponse<UserProfileResponseDto>> getUserProfile();
 }

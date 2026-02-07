@@ -2,36 +2,33 @@ package com.blind.paylock.service;
 
 import com.blind.paylock.datalayer.dto.request.ReservationCreateRequestDto;
 import com.blind.paylock.datalayer.dto.request.ReservationPaymentRequestDto;
+import com.blind.paylock.datalayer.dto.response.ReservationResponseDto;
 import com.blind.paylock.utils.apis.ApiResponse;
 import reactor.core.publisher.Mono;
 
-import java.util.Map;
+import java.util.List;
 
 public interface ReservationService {
 
-    Mono<ApiResponse> createReservationWithFirstPayment(
-        ReservationCreateRequestDto request,
-        Map<String, String> headers
+    Mono<ApiResponse<ReservationResponseDto>> createReservationWithFirstPayment(
+        ReservationCreateRequestDto request
     );
 
-    Mono<ApiResponse> makePayment(
+    Mono<ApiResponse<ReservationResponseDto>> makePayment(
         String reservationId,
-        ReservationPaymentRequestDto request,
-        Map<String, String> headers
+        ReservationPaymentRequestDto request
     );
 
-    Mono<ApiResponse> cancelReservation(
-        String reservationId,
-        Map<String, String> headers
+    Mono<ApiResponse<Void>> cancelReservation(
+        String reservationId
+
     );
 
-    Mono<ApiResponse> getReservation(
-        String reservationId,
-        Map<String, String> headers
+    Mono<ApiResponse<ReservationResponseDto>> getReservation(
+        String reservationId
     );
 
-    Mono<ApiResponse> listUserReservations(
-        Map<String, String> headers,
+    Mono<ApiResponse<List<ReservationResponseDto>>> listUserReservations(
         int page,
         int size
     );

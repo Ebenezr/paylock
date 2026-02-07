@@ -2,24 +2,22 @@ package com.blind.paylock.service;
 
 import com.blind.paylock.datalayer.dto.request.WalletCreditRequestDto;
 import com.blind.paylock.datalayer.dto.request.WalletDebitRequestDto;
+import com.blind.paylock.datalayer.dto.response.WalletDebitResponseDto;
 import com.blind.paylock.utils.apis.ApiResponse;
 import reactor.core.publisher.Mono;
 
-import java.util.Map;
+import java.math.BigDecimal;
 
 public interface WalletService {
 
-    Mono<ApiResponse> getWalletBalance(
-        Map<String, String> headers
+    Mono<ApiResponse<BigDecimal>> getWalletBalance(
     );
 
-    Mono<ApiResponse> creditWallet(
-        WalletCreditRequestDto request,
-        Map<String, String> headers
+    Mono<ApiResponse<Void>> creditWallet(
+        WalletCreditRequestDto request
     );
 
-    Mono<ApiResponse> debitWallet(
-        WalletDebitRequestDto request,
-        Map<String, String> headers
+    Mono<ApiResponse<WalletDebitResponseDto>> debitWallet(
+        WalletDebitRequestDto request
     );
 }
