@@ -1,11 +1,14 @@
 package com.blind.paylock.service.impl;
 
 import com.blind.paylock.datalayer.dto.request.EventCreateRequestDto;
+import com.blind.paylock.datalayer.dto.response.EventListItemResponseDto;
 import com.blind.paylock.datalayer.dto.response.EventResponseDto;
+import com.blind.paylock.datalayer.dto.response.TicketAvailabilityDto;
 import com.blind.paylock.datalayer.model.Event;
 import com.blind.paylock.exception.InvalidStateException;
 import com.blind.paylock.exception.NotFoundException;
 import com.blind.paylock.repository.EventRepository;
+import com.blind.paylock.repository.TicketTypeRepository;
 import com.blind.paylock.service.EventService;
 import com.blind.paylock.utils.apis.ApiResponse;
 import com.blind.paylock.utils.apis.ResponseFactory;
@@ -23,6 +26,7 @@ import java.util.UUID;
 public class EventServiceImpl implements EventService {
 
     private final EventRepository eventRepository;
+    private final TicketTypeRepository ticketTypeRepository;
 
     @Override
     public Mono<ApiResponse<EventResponseDto>> createEvent(
@@ -81,17 +85,41 @@ public class EventServiceImpl implements EventService {
                 });
     }
 
+
     @Override
-    public Mono<ApiResponse<List<EventResponseDto>>> listPublishedEvents(int page, int size) {
+    public Mono<ApiResponse<List<EventListItemResponseDto>>> listPublishedEvents() {
         String requestRefId = ResponseFactory.newRequestRefId();
 
         return eventRepository.findAllByStatus(EventStatus.PUBLISHED)
-                .map(this::map)
+                .flatMap(event ->
+                        ticketTypeRepository.findAllByEventId(event.getId())
+                                .map(tt ->
+                                        TicketAvailabilityDto.builder()
+                                                .ticketTypeId(tt.getId().toString())
+                                                .name(tt.getName())
+                                                .price(tt.getPrice())
+                                                .totalQuantity(tt.getTotalQuantity())
+                                                .availableQuantity(tt.getTotalQuantity()) // derived later
+                                                .build()
+                                )
+                                .collectList()
+                                .map(ticketTypes ->
+                                        EventListItemResponseDto.builder()
+                                                .eventId(event.getId().toString())
+                                                .name(event.getName())
+                                                .startDate(event.getStartDate())
+                                                .endDate(event.getEndDate())
+                                                .paymentCutoff(event.getPaymentCutoff())
+                                                .ticketTypes(ticketTypes)
+                                                .build()
+                                )
+                )
                 .collectList()
                 .flatMap(list ->
                         ResponseFactory.success(list, requestRefId)
                 );
     }
+
 
     private EventResponseDto map(Event event) {
         return EventResponseDto.builder()

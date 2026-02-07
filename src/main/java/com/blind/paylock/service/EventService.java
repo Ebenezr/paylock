@@ -1,6 +1,7 @@
 package com.blind.paylock.service;
 
 import com.blind.paylock.datalayer.dto.request.EventCreateRequestDto;
+import com.blind.paylock.datalayer.dto.response.EventListItemResponseDto;
 import com.blind.paylock.datalayer.dto.response.EventResponseDto;
 import com.blind.paylock.utils.apis.ApiResponse;
 import reactor.core.publisher.Mono;
@@ -21,8 +22,6 @@ public interface EventService {
         String eventId
     );
 
-    Mono<ApiResponse<List<EventResponseDto>>> listPublishedEvents(
-        int page,
-        int size
-    );
+    Mono<ApiResponse<List<EventListItemResponseDto>>> listPublishedEvents(
+            );
 }

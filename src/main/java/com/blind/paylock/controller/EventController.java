@@ -1,6 +1,7 @@
 package com.blind.paylock.controller;
 
 import com.blind.paylock.datalayer.dto.request.EventCreateRequestDto;
+import com.blind.paylock.datalayer.dto.response.EventListItemResponseDto;
 import com.blind.paylock.datalayer.dto.response.EventResponseDto;
 import com.blind.paylock.service.EventService;
 import com.blind.paylock.utils.apis.ApiResponse;
@@ -40,10 +41,10 @@ public class EventController {
     }
 
     @GetMapping
-    public Mono<ApiResponse<List<EventResponseDto>>> listPublished(
+    public Mono<ApiResponse<List<EventListItemResponseDto>>> listPublished(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return eventService.listPublishedEvents(page, size);
+        return eventService.listPublishedEvents();
     }
 }
