@@ -17,4 +17,7 @@ public class PaylockConfigProperties {
 
     @Value("${cancellation.fee.percent}")
     private String cancellationFeePercent;
+
+    @Value("${expiry.check.interval")
+    private String expiryCheckInterval;
 }
