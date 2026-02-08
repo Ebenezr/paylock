@@ -1,5 +1,6 @@
 package com.blind.paylock.service.impl;
 
+import com.blind.paylock.component.TicketIssuer;
 import com.blind.paylock.component.WalletProcessor;
 import com.blind.paylock.config.PaylockConfigProperties;
 import com.blind.paylock.datalayer.dto.request.ReservationCreateRequestDto;
@@ -36,6 +37,8 @@ public class ReservationServiceImpl implements ReservationService {
     private final EventRepository eventRepository;
     private final WalletProcessor walletProcessor;
     private final PaylockConfigProperties properties;
+    private final TicketIssuer ticketIssuer;
+
 
     @Override
     public Mono<ApiResponse<ReservationResponseDto>> createReservationWithFirstPayment(
@@ -172,29 +175,39 @@ public class ReservationServiceImpl implements ReservationService {
                             return Mono.error(new InvalidStateException("Overpayment not allowed"));
                         }
 
+                        boolean becomesPaid =
+                                newPaid.compareTo(r.getTotalAmount()) == 0;
+
+                        Reservation updated =
+                                r.toBuilder()
+                                        .amountPaid(newPaid)
+                                        .status(
+                                                becomesPaid
+                                                        ? ReservationStatus.PAID
+                                                        : ReservationStatus.PARTIALLY_PAID
+                                        )
+                                        .isNew(false)
+                                        .build();
+
                         return walletProcessor.debit(
                                 userId,
                                 request.getAmount(),
                                 "RESERVATION_PAYMENT",
                                 reservationId
-                        ).then(
-                            reservationRepository.save(
-                                r.toBuilder()
-                                    .amountPaid(newPaid)
-                                    .status(
-                                        newPaid.compareTo(r.getTotalAmount()) == 0
-                                            ? ReservationStatus.PAID
-                                            : ReservationStatus.PARTIALLY_PAID
-                                    )
-                                    .isNew(false)
-                                    .build()
-                            )
-                        );
+                        ).then(reservationRepository.save(updated))
+                                .flatMap(saved -> {
+                                    if (becomesPaid) {
+                                        return ticketIssuer
+                                                .issueTickets(saved)
+                                                .thenReturn(saved);
+                                    }
+                                    return Mono.just(saved);
+                                });
                     })
             )
-            .flatMap(r ->
-                ResponseFactory.success(map(r), requestRefId)
-            );
+                .flatMap(r ->
+                        ResponseFactory.success(map(r), requestRefId)
+                );
     }
 
     @Override
