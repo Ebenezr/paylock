@@ -46,7 +46,6 @@ public class UserServiceImpl implements UserService {
 
                     User newUser = userComponent.buildNewUser(request);
                     newUser.setPassword(passwordEncoder.encode(request.getPassword()));
-                    newUser.setRole(UserRoles.valueOf("USER"));
 
                     Wallet wallet = new Wallet(newUser.getId());
 
@@ -61,6 +60,7 @@ public class UserServiceImpl implements UserService {
                                                     .name(saved.getName())
                                                     .email(saved.getEmail())
                                                     .status(saved.getStatus())
+                                                    .role(saved.getRole())
                                                     .build(),
                                             requestRefId
                                     )
@@ -82,6 +82,7 @@ public class UserServiceImpl implements UserService {
                                                         .name(user.getName())
                                                         .email(user.getEmail())
                                                         .status(user.getStatus())
+                                                        .role(UserRoles.USER)
                                                         .createdAt(user.getCreatedAt())
                                                         .build(),
                                                 requestRefId

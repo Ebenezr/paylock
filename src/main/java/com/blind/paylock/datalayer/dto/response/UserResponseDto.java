@@ -1,5 +1,6 @@
 package com.blind.paylock.datalayer.dto.response;
 
+import com.blind.paylock.utils.enums.UserRoles;
 import com.blind.paylock.utils.enums.UserStatus;
 import lombok.Builder;
 import lombok.Data;
@@ -15,4 +16,5 @@ public class UserResponseDto {
     private String email;
     private UserStatus status;
     private LocalDateTime createdAt;
+    private UserRoles role;
 }

@@ -11,6 +11,7 @@ import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
@@ -47,9 +48,10 @@ public class User implements Persistable<UUID> {
   private boolean isNew = true;
 
   @NotNull
-  private String password;   // BCrypt hash
+  private String password;
 
   @NotNull
+  @Column("role")
   private UserRoles role;
 
   @Override

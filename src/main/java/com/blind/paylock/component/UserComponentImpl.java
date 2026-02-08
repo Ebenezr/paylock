@@ -19,7 +19,7 @@ public class UserComponentImpl implements UserComponent {
                 .name(request.getName())
                 .email(request.getEmail())
                 .status(UserStatus.ACTIVE)
-                .role(UserRoles.USER)
+                .role(request.getRole() != null ? request.getRole() : UserRoles.USER)
                 .createdAt(LocalDateTime.now())
                 .build();
     }

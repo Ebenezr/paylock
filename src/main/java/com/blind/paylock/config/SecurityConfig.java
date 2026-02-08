@@ -1,6 +1,7 @@
 package com.blind.paylock.config;
 
 import com.blind.paylock.component.JwtAuthenticationFilter;
+import com.blind.paylock.component.RateLimitingFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -14,9 +15,12 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RateLimitingFilter rateLimitingFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                          RateLimitingFilter rateLimitingFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.rateLimitingFilter = rateLimitingFilter;
     }
 
     @Bean
@@ -25,6 +29,9 @@ public class SecurityConfig {
         http
             // Disable CSRF for APIs
             .csrf(ServerHttpSecurity.CsrfSpec::disable)
+
+            // Add rate limiting filter first
+            .addFilterAt(rateLimitingFilter, SecurityWebFiltersOrder.FIRST)
 
             // Add JWT filter before authentication
             .addFilterAt(jwtAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
