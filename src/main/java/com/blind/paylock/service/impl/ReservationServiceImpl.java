@@ -135,6 +135,7 @@ public class ReservationServiceImpl implements ReservationService {
                                                                                 )
                                                                                 .expiryDate(LocalDateTime.now().plusDays(7))
                                                                                 .createdAt(LocalDateTime.now())
+                                                                                .eventId(ticketType.getEventId())
                                                                                 .build()
                                                                 )
                                                         );

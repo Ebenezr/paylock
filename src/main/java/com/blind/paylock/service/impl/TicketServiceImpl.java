@@ -46,6 +46,10 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     public Mono<ApiResponse<Void>> invalidateTicketsByEvent(String eventId) {
-        return Mono.error(new UnsupportedOperationException("Not implemented yet"));
+        String requestRefId = ResponseFactory.newRequestRefId();
+        UUID eventUuid = UUID.fromString(eventId);
+
+        return ticketRepository.invalidateByEventId(eventUuid)
+                .then(ResponseFactory.success(null, requestRefId));
     }
 }

@@ -28,6 +28,8 @@ public class Reservation implements Persistable<UUID> {
   private UUID ticketTypeId;
   private int quantity;
 
+  private UUID eventId;
+
   private BigDecimal totalAmount;
   private BigDecimal amountPaid;
 

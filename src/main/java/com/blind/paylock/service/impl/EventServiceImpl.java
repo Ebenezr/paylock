@@ -1,5 +1,6 @@
 package com.blind.paylock.service.impl;
 
+import com.blind.paylock.component.WalletProcessor;
 import com.blind.paylock.datalayer.dto.request.EventCreateRequestDto;
 import com.blind.paylock.datalayer.dto.response.EventListItemResponseDto;
 import com.blind.paylock.datalayer.dto.response.EventResponseDto;
@@ -14,10 +15,12 @@ import com.blind.paylock.service.EventService;
 import com.blind.paylock.utils.apis.ApiResponse;
 import com.blind.paylock.utils.apis.ResponseFactory;
 import com.blind.paylock.utils.enums.EventStatus;
+import com.blind.paylock.utils.enums.ReservationStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -29,6 +32,9 @@ public class EventServiceImpl implements EventService {
     private final EventRepository eventRepository;
     private final TicketTypeRepository ticketTypeRepository;
     private final ReservationRepository reservationRepository;
+    private final WalletProcessor walletProcessor;
+    private final TicketServiceImpl ticketService;
+
 
     @Override
     public Mono<ApiResponse<EventResponseDto>> createEvent(
@@ -76,16 +82,59 @@ public class EventServiceImpl implements EventService {
     @Override
     public Mono<ApiResponse<Void>> cancelEvent(String eventId) {
         String requestRefId = ResponseFactory.newRequestRefId();
+        UUID eventUuid = UUID.fromString(eventId);
 
-        return eventRepository.findById(UUID.fromString(eventId))
+        return eventRepository.findById(eventUuid)
                 .switchIfEmpty(Mono.error(new NotFoundException("Event not found")))
                 .flatMap(event -> {
-                    event.setStatus(EventStatus.CANCELED);
-                    event.setNew(false);
-                    return eventRepository.save(event)
-                            .then(ResponseFactory.success(null, requestRefId));
-                });
+
+                    if (event.getStatus() == EventStatus.CANCELED) {
+                        return Mono.empty();
+                    }
+
+                    return eventRepository.save(
+                            event.toBuilder()
+                                    .status(EventStatus.CANCELED)
+                                    .isNew(false)
+                                    .build()
+                    );
+                }).then(refundReservationsByEvent(eventUuid))
+                .then(ticketService.invalidateTicketsByEvent(eventId))
+                .then(ResponseFactory.success(null, requestRefId));
     }
+
+    private Mono<Void> refundReservationsByEvent(UUID eventId) {
+
+        return reservationRepository
+                .findAllByEventIdAndStatusIn(
+                        eventId,
+                        List.of(
+                                ReservationStatus.PAID,
+                                ReservationStatus.PARTIALLY_PAID
+                        )
+                )
+                .flatMap(reservation -> {
+
+                    BigDecimal refundAmount = reservation.getAmountPaid();
+
+                    return walletProcessor.credit(
+                                    reservation.getUserId(),
+                                    refundAmount,
+                                    "EVENT_CANCEL",
+                                    reservation.getId().toString()
+                            )
+                            .then(
+                                    reservationRepository.save(
+                                            reservation.toBuilder()
+                                                    .status(ReservationStatus.CANCELED_BY_EVENT)
+                                                    .isNew(false)
+                                                    .build()
+                                    )
+                            );
+                })
+                .then();
+    }
+
 
 
     @Override

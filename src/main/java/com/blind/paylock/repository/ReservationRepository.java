@@ -1,11 +1,13 @@
 package com.blind.paylock.repository;
 
 import com.blind.paylock.datalayer.model.Reservation;
+import com.blind.paylock.utils.enums.ReservationStatus;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface ReservationRepository
@@ -42,5 +44,11 @@ public interface ReservationRepository
             UUID ticketTypeId,
             int threshold
     );
+
+    Flux<Reservation> findAllByEventIdAndStatusIn(
+            UUID eventId,
+            List<ReservationStatus> statuses
+    );
+
 
 }
