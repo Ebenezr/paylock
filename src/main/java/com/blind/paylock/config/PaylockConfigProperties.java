@@ -14,4 +14,7 @@ public class PaylockConfigProperties {
     @Value("${lock.threshold.percent}")
     private String lockThresholdPercent;
 
+
+    @Value("${cancellation.fee.percent}")
+    private String cancellationFeePercent;
 }

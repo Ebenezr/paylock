@@ -212,9 +212,71 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Override
     public Mono<ApiResponse<Void>> cancelReservation(String reservationId) {
-        // Phase 2 – refund logic
-        return Mono.error(new UnsupportedOperationException("Not implemented yet"));
+        String requestRefId = ResponseFactory.newRequestRefId();
+        UUID reservationUuid = UUID.fromString(reservationId);
+
+        return ReactiveSecurityUtil.currentUserId()
+                .flatMap(userId ->
+                        reservationRepository.findById(reservationUuid)
+                                .filter(r -> r.getUserId().equals(userId))
+                                .switchIfEmpty(Mono.error(
+                                        new NotFoundException("Reservation not found")
+                                ))
+                                .flatMap(r -> {
+
+                                    if (r.getStatus() == ReservationStatus.PAID) {
+                                        return Mono.error(
+                                                new InvalidStateException(
+                                                        "Paid reservations cannot be canceled"
+                                                )
+                                        );
+                                    }
+
+                                    if (r.getStatus() == ReservationStatus.CANCELED
+                                            || r.getStatus() == ReservationStatus.EXPIRED) {
+                                        return Mono.error(
+                                                new InvalidStateException(
+                                                        "Reservation already closed"
+                                                )
+                                        );
+                                    }
+
+                                    BigDecimal cancellationFee =
+                                            r.getAmountPaid()
+                                                    .multiply(
+                                                            BigDecimal.valueOf(
+                                                                    Long.parseLong(properties.getCancellationFeePercent())
+                                                            )
+                                                    )
+                                                    .divide(BigDecimal.valueOf(100));
+
+                                    BigDecimal refundAmount =
+                                            r.getAmountPaid().subtract(cancellationFee);
+
+                                    Reservation canceled =
+                                            r.toBuilder()
+                                                    .status(ReservationStatus.CANCELED)
+                                                    .isNew(false)
+                                                    .build();
+
+                                    Mono<Void> refundFlow =
+                                            refundAmount.compareTo(BigDecimal.ZERO) > 0
+                                                    ? walletProcessor.credit(
+                                                    userId,
+                                                    refundAmount,
+                                                    "RESERVATION_CANCEL",
+                                                    reservationId
+                                            )
+                                                    : Mono.empty();
+
+                                    return refundFlow
+                                            .then(reservationRepository.save(canceled))
+                                            .then();
+                                })
+                )
+                .then(ResponseFactory.success(null, requestRefId));
     }
+
 
     @Override
     public Mono<ApiResponse<ReservationResponseDto>> getReservation(

@@ -33,6 +33,15 @@ public class ReservationController {
         return reservationService.makePayment(id, request);
     }
 
+
+    @PostMapping("/{id}/cancel")
+    public Mono<ApiResponse<Void>> cancel(
+            @PathVariable String id
+    ) {
+        return reservationService.cancelReservation(id);
+    }
+
+
     @GetMapping("/{id}")
     public Mono<ApiResponse<ReservationResponseDto>> get(
             @PathVariable String id
