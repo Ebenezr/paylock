@@ -1,15 +1,28 @@
 package com.blind.paylock.exception;
 
+import org.springframework.http.HttpStatus;
+
 public abstract class BusinessException extends RuntimeException {
 
     private final String errorCode;
+    private final HttpStatus status;
 
-    protected BusinessException(String message, String errorCode) {
+    protected BusinessException(String message, String errorCode, HttpStatus status) {
         super(message);
         this.errorCode = errorCode;
+        this.status = status;
+    }
+
+    // Convenience constructor for subclasses that only provide message and errorCode
+    protected BusinessException(String message, String errorCode) {
+        this(message, errorCode, HttpStatus.BAD_REQUEST);
     }
 
     public String getErrorCode() {
         return errorCode;
+    }
+
+    public HttpStatus getStatus() {
+        return status;
     }
 }
