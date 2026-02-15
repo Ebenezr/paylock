@@ -16,11 +16,17 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RateLimitingFilter rateLimitingFilter;
+    private final ReactiveAuthenticationEntryPoint authenticationEntryPoint;
+    private final ReactiveAccessDeniedHandler accessDeniedHandler;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-                          RateLimitingFilter rateLimitingFilter) {
+                          RateLimitingFilter rateLimitingFilter,
+                          ReactiveAuthenticationEntryPoint authenticationEntryPoint,
+                          ReactiveAccessDeniedHandler accessDeniedHandler) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.rateLimitingFilter = rateLimitingFilter;
+        this.authenticationEntryPoint = authenticationEntryPoint;
+        this.accessDeniedHandler = accessDeniedHandler;
     }
 
     @Bean
@@ -42,7 +48,16 @@ public class SecurityConfig {
                 .pathMatchers(HttpMethod.POST, "/api/v1/users").permitAll()
                 .pathMatchers(HttpMethod.GET, "/api/v1/events").permitAll()
                 .pathMatchers(HttpMethod.GET, "/api/v1/events/*/availability").permitAll()
+                // Restrict role/status changes to ADMIN
+                .pathMatchers(HttpMethod.PATCH, "/api/v1/users/*/role").hasRole("ADMIN")
+                .pathMatchers(HttpMethod.PATCH, "/api/v1/users/*/status").hasRole("ADMIN")
                 .anyExchange().authenticated()
+            )
+
+            // Exception handling - return ApiResponse JSON for auth/access errors
+            .exceptionHandling(e -> e
+                    .authenticationEntryPoint(authenticationEntryPoint)
+                    .accessDeniedHandler(accessDeniedHandler)
             )
 
             // No login forms

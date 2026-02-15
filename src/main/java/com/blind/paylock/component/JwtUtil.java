@@ -35,4 +35,16 @@ public class JwtUtil {
         );
     }
 
+    public Mono<String> extractUserRole(String token) {
+        return Mono.fromCallable(() ->
+                Jwts.parser()
+                        .verifyWith(key)
+                        .build()
+                        .parseSignedClaims(token)
+                        .getPayload()
+                        .get("role")
+                        .toString()
+        );
+    }
+
 }

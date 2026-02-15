@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
@@ -12,6 +13,7 @@ import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
 import java.util.Collections;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -31,12 +33,20 @@ public class JwtAuthenticationFilter implements WebFilter {
 
         String token = authHeader.substring(7);
 
-        return jwtUtil.extractUserId(token)
-                .flatMap(userId -> {
+        // Extract both user id and role, then set authority
+        return Mono.zip(jwtUtil.extractUserId(token), jwtUtil.extractUserRole(token))
+                .flatMap(tuple -> {
+                    String userId = tuple.getT1();
+                    String role = tuple.getT2();
+
+                    List<SimpleGrantedAuthority> authorities = Collections.singletonList(
+                            new SimpleGrantedAuthority("ROLE_" + role)
+                    );
+
                     Authentication auth = new UsernamePasswordAuthenticationToken(
                             userId,
                             null,
-                            Collections.emptyList()
+                            authorities
                     );
 
                     return chain.filter(exchange)
