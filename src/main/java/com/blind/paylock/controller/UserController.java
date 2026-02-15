@@ -1,5 +1,7 @@
 package com.blind.paylock.controller;
 
+import com.blind.paylock.datalayer.dto.request.ChangeUserRoleRequestDto;
+import com.blind.paylock.datalayer.dto.request.UpdateUserRequestDto;
 import com.blind.paylock.datalayer.dto.request.UserCreateRequestDto;
 import com.blind.paylock.datalayer.dto.response.UserProfileResponseDto;
 import com.blind.paylock.datalayer.dto.response.UserResponseDto;
@@ -30,5 +32,29 @@ public class UserController {
     public Mono<ApiResponse<UserProfileResponseDto>> profile() {
         String requestRefId = ResponseFactory.newRequestRefId();
         return userService.getUserProfile(requestRefId);
+    }
+
+    @PatchMapping("/{userId}/role")
+    public Mono<ApiResponse<UserResponseDto>> changeUserRole(
+            @PathVariable String userId,
+            @Valid @RequestBody ChangeUserRoleRequestDto request
+    ) {
+        return userService.changeUserRole(userId, request);
+    }
+
+    @PatchMapping("/{userId}/status")
+    public Mono<ApiResponse<UserResponseDto>> changeUserStatus(
+            @PathVariable String userId,
+            @RequestParam String status
+    ) {
+        return userService.changeUserStatus(userId, status);
+    }
+
+    @PutMapping("/{userId}")
+    public Mono<ApiResponse<UserResponseDto>> updateUserDetails(
+            @PathVariable String userId,
+            @Valid @RequestBody UpdateUserRequestDto request
+    ) {
+        return userService.updateUserDetails(userId, request);
     }
 }

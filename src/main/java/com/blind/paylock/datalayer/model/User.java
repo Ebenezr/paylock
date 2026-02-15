@@ -9,7 +9,6 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
@@ -43,10 +42,6 @@ public class User implements Persistable<UUID> {
   @NotNull(message = "Created date is required")
   private LocalDateTime createdAt;
 
-  @Transient
-  @Builder.Default
-  private boolean isNew = true;
-
   @NotNull
   private String password;
 
@@ -56,6 +51,6 @@ public class User implements Persistable<UUID> {
 
   @Override
   public boolean isNew() {
-    return isNew;
+    return this.id == null;
   }
 }
