@@ -48,11 +48,6 @@ public class SecurityConfig {
                 .pathMatchers(HttpMethod.POST, "/api/v1/users").permitAll()
                 .pathMatchers(HttpMethod.GET, "/api/v1/events").permitAll()
                 .pathMatchers(HttpMethod.GET, "/api/v1/events/*/availability").permitAll()
-                // Restrict role/status changes to ADMIN
-                .pathMatchers(HttpMethod.PATCH, "/api/v1/users/*/role").hasRole("ADMIN")
-                .pathMatchers(HttpMethod.PATCH, "/api/v1/users/*/status").hasRole("ADMIN")
-                // Restrict listing users to ADMIN
-                .pathMatchers(HttpMethod.GET, "/api/v1/users").hasRole("ADMIN")
                 .anyExchange().authenticated()
             )
 

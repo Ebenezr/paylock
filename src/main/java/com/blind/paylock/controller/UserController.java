@@ -12,6 +12,7 @@ import com.blind.paylock.utils.apis.ResponseFactory;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -38,11 +39,13 @@ public class UserController {
         return userService.getUserProfile(requestRefId);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public Mono<ApiResponse<List<UserResponseDto>>> listUsers() {
         return userService.listUsers();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/{userId}/role")
     public Mono<ApiResponse<UserResponseDto>> changeUserRole(
             @PathVariable String userId,
@@ -72,6 +75,7 @@ public class UserController {
                 );
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/{userId}/status")
     public Mono<ApiResponse<UserResponseDto>> changeUserStatus(
             @PathVariable String userId,

@@ -6,6 +6,7 @@ import com.blind.paylock.service.TicketTypeService;
 import com.blind.paylock.utils.apis.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -18,6 +19,7 @@ public class TicketTypeController {
 
     private final TicketTypeService ticketTypeService;
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public Mono<ApiResponse<TicketTypeResponseDto>> create(
             @PathVariable String eventId,

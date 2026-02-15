@@ -7,6 +7,7 @@ import com.blind.paylock.service.EventService;
 import com.blind.paylock.utils.apis.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -19,6 +20,7 @@ public class EventController {
 
     private final EventService eventService;
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public Mono<ApiResponse<EventResponseDto>> create(
             @Valid @RequestBody EventCreateRequestDto request
@@ -26,6 +28,7 @@ public class EventController {
         return eventService.createEvent(request);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{eventId}/publish")
     public Mono<ApiResponse<Void>> publish(
             @PathVariable String eventId
@@ -33,6 +36,7 @@ public class EventController {
         return eventService.publishEvent(eventId);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{eventId}/cancel")
     public Mono<ApiResponse<Void>> cancel(
             @PathVariable String eventId
