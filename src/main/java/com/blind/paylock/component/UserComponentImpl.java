@@ -21,6 +21,7 @@ public class UserComponentImpl implements UserComponent {
                 .status(UserStatus.ACTIVE)
                 .role(request.getRole() != null ? request.getRole() : UserRoles.USER)
                 .createdAt(LocalDateTime.now())
+                .isNew(true)
                 .build();
     }
 }

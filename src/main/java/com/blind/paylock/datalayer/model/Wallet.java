@@ -32,7 +32,7 @@ public class Wallet implements Persistable<UUID> {
 
   @Transient
   @Builder.Default
-  private boolean isNew = true;
+  private boolean isNew = false;
 
   /** Convenience constructor */
   public Wallet(UUID userId) {

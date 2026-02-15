@@ -23,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -181,6 +182,20 @@ public class UserServiceImpl implements UserService {
                 ));
     }
 
+    @Override
+    public Mono<ApiResponse<List<UserResponseDto>>> listUsers() {
+        return userRepository.findAll()
+                .map(user -> UserResponseDto.builder()
+                        .userId(String.valueOf(user.getId()))
+                        .name(user.getName())
+                        .email(user.getEmail())
+                        .status(user.getStatus())
+                        .role(user.getRole())
+                        .build()
+                )
+                .collectList()
+                .flatMap(list -> ResponseFactory.success(list, ResponseFactory.newRequestRefId()));
+    }
 
 
 }

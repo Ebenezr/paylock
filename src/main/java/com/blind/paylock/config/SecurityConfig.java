@@ -51,6 +51,8 @@ public class SecurityConfig {
                 // Restrict role/status changes to ADMIN
                 .pathMatchers(HttpMethod.PATCH, "/api/v1/users/*/role").hasRole("ADMIN")
                 .pathMatchers(HttpMethod.PATCH, "/api/v1/users/*/status").hasRole("ADMIN")
+                // Restrict listing users to ADMIN
+                .pathMatchers(HttpMethod.GET, "/api/v1/users").hasRole("ADMIN")
                 .anyExchange().authenticated()
             )
 

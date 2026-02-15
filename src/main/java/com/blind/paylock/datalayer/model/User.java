@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
@@ -49,8 +50,12 @@ public class User implements Persistable<UUID> {
   @Column("role")
   private UserRoles role;
 
+  @Transient
+  @Builder.Default
+  private boolean isNew = false;
+
   @Override
   public boolean isNew() {
-    return this.id == null;
+    return this.isNew;
   }
 }

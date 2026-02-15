@@ -8,6 +8,8 @@ import com.blind.paylock.datalayer.dto.response.UserResponseDto;
 import com.blind.paylock.utils.apis.ApiResponse;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 
 public interface UserService {
 
@@ -28,4 +30,7 @@ public interface UserService {
     // edit user details
     Mono<ApiResponse<UserResponseDto>> updateUserDetails(String userId,
                                                        UpdateUserRequestDto request);
+
+    // list all users (admin only)
+    Mono<ApiResponse<List<UserResponseDto>>> listUsers();
 }
