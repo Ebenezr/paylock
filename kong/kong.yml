@@ -17,6 +17,15 @@ services:
           - POST
         strip_path: false
 
+      # Public events route: add specific route so Kong matches it before the generic /api route
+      - name: public-events-route
+        paths:
+          - /api/v1/events
+          - /api/v1/events/*/availability
+        methods:
+          - GET
+        strip_path: false
+
       - name: protected-route
         paths:
           - /api
@@ -36,15 +45,7 @@ plugins:
       secret_is_base64: false
       key_claim_name: iss
 
-  # Inject headers only on protected route
-  - name: request-transformer
-    route: protected-route
-    config:
-      add:
-        headers:
-          - "X-User-Id:$(jwt.claims.sub)"
-          - "X-User-Role:$(jwt.claims.role)"
-
+  # rate-limiting attached to the service
   - name: rate-limiting
     service: paylock-service
     config:

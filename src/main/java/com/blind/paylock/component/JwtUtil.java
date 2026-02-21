@@ -23,24 +23,29 @@ public class JwtUtil {
     }
 
     public String generateToken(User user) {
+        if (user == null || user.getId() == null) {
+            throw new IllegalArgumentException("User and user.id must be provided to generate a token");
+        }
+
         return Jwts.builder()
                 .issuer("paylock-client")
                 .claim("iss", "paylock-client") // Add explicit "iss" claim to ensure the issuer appears in the JWT payload (some consumers expect the claim name exactly)
                 .subject(user.getId().toString())
-                .claim("role", user.getRole())
+                .claim("role", user.getRole() != null ? user.getRole().name() : null)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + EXPIRY_MS))
-                .signWith(key)
+                .signWith(key) // use modern overload to avoid deprecated SignatureAlgorithm usage
                 .compact();
     }
 
     public Mono<String> extractUserId(String token) {
         return Mono.fromCallable(() ->
+                // Use a parser API compatible with the project's JJWT setup
                 Jwts.parser()
-                        .verifyWith(key)
+                        .setSigningKey(key)
                         .build()
-                        .parseSignedClaims(token)
-                        .getPayload()
+                        .parseClaimsJws(token)
+                        .getBody()
                         .getSubject()
         );
     }
@@ -48,10 +53,10 @@ public class JwtUtil {
     public Mono<String> extractUserRole(String token) {
         return Mono.fromCallable(() ->
                 Jwts.parser()
-                        .verifyWith(key)
+                        .setSigningKey(key)
                         .build()
-                        .parseSignedClaims(token)
-                        .getPayload()
+                        .parseClaimsJws(token)
+                        .getBody()
                         .get("role")
                         .toString()
         );

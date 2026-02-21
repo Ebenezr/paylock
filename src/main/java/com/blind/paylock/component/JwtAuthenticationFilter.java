@@ -1,6 +1,7 @@
 package com.blind.paylock.component;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -15,6 +16,7 @@ import reactor.core.publisher.Mono;
 import java.util.Collections;
 import java.util.List;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter implements WebFilter {
@@ -52,6 +54,9 @@ public class JwtAuthenticationFilter implements WebFilter {
                     return chain.filter(exchange)
                             .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
                 })
-                .onErrorResume(e -> chain.filter(exchange));
+                .onErrorResume(e -> {
+                    log.error("JWT authentication failed", e);
+                    return chain.filter(exchange);
+                });
     }
 }
