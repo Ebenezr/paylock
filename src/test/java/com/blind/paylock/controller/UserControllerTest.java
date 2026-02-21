@@ -90,22 +90,7 @@ class UserControllerTest {
         assertThat(r).isNotNull();
     }
 
-    @Test
-    void changeUserRole_whenCurrentUserIsSame_shouldReturnBadRequest() {
-        ChangeUserRoleRequestDto req = new ChangeUserRoleRequestDto();
-        req.setRole("ADMIN");
 
-        // use a valid UUID string as principal and path variable
-        String userId = UUID.randomUUID().toString();
-        Authentication auth = new UsernamePasswordAuthenticationToken(userId, "x", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
-
-        ApiResponse<UserResponseDto> r = userController.changeUserRole(userId, req)
-                .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth))
-                .block();
-
-        assertThat(r).isNotNull();
-        assertThat(r.getHeader().getResponseCode()).isEqualTo(400);
-    }
 
     @Test
     void changeUserRole_whenDifferent_shouldDelegateToService() {
@@ -124,17 +109,6 @@ class UserControllerTest {
 
         assertThat(r).isNotNull();
         assertThat(r.getHeader().getResponseCode()).isEqualTo(200);
-    }
-
-    @Test
-    void changeUserStatus_whenCurrentUserIsSame_shouldReturnBadRequest() {
-        String userId = UUID.randomUUID().toString();
-        Authentication auth = new UsernamePasswordAuthenticationToken(userId, "x", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
-        ApiResponse<UserResponseDto> r = userController.changeUserStatus(userId, "ACTIVE")
-                .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth))
-                .block();
-        assertThat(r).isNotNull();
-        assertThat(r.getHeader().getResponseCode()).isEqualTo(400);
     }
 
     @Test

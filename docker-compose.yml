@@ -78,33 +78,33 @@ services:
     networks:
       - paylock-network
 
-  portainer:
-    image: portainer/portainer-ce:latest
-    container_name: paylock-portainer
-    restart: unless-stopped
-    environment:
-      - TZ=UTC
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
-    ports:
-      - "9000:9000"
-      - "9443:9443"
-    networks:
-      - paylock-network
+#  portainer:
+#    image: portainer/portainer-ce:latest
+#    container_name: paylock-portainer
+#    restart: unless-stopped
+#    environment:
+#      - TZ=UTC
+#    volumes:
+#      - /var/run/docker.sock:/var/run/docker.sock
+#      - portainer_data:/data
+#    ports:
+#      - "9000:9000"
+#      - "9443:9443"
+#    networks:
+#      - paylock-network
 
-  uptime-kuma:
-    image: louislam/uptime-kuma:1
-    container_name: paylock-uptime-kuma
-    restart: unless-stopped
-    environment:
-      - TZ=UTC
-    volumes:
-      - uptime_kuma_data:/app/data
-    ports:
-      - "3001:3001"
-    networks:
-      - paylock-network
+#  uptime-kuma:
+#    image: louislam/uptime-kuma:1
+#    container_name: paylock-uptime-kuma
+#    restart: unless-stopped
+#    environment:
+#      - TZ=UTC
+#    volumes:
+#      - uptime_kuma_data:/app/data
+#    ports:
+#      - "3001:3001"
+#    networks:
+#      - paylock-network
 
 volumes:
   mysql-data:
