@@ -147,11 +147,54 @@ Paylock follows a **layered reactive architecture**:
 
    The application will start on `http://localhost:8080`
 
-### Running with Docker (Coming Soon)
+### Running with Docker (App + Reverse Proxy + API Gateway)
+
+Build the application JAR first:
 
 ```bash
-docker-compose up -d
+./mvnw clean package -DskipTests
 ```
+
+Start all services:
+
+```bash
+docker compose up --build -d
+```
+
+Services included:
+
+- `paylock` (Spring Boot app)
+- `mysql` (database)
+- `kong` (API gateway)
+- `nginx` (reverse proxy entrypoint)
+
+MySQL schema auto-init:
+
+- `sql/schema.sql` is mounted to `/docker-entrypoint-initdb.d/01-schema.sql`
+- It runs automatically only when MySQL initializes a fresh data directory (first run)
+- To force re-init: `docker compose down -v && docker compose up --build -d`
+
+Access patterns (Nginx published on port `8088`):
+
+- Reverse proxy path (Nginx -> App): `http://localhost:8088/app/api/v1/...`
+- API gateway path (Nginx -> Kong -> App): `http://localhost:8088/gateway/api/v1/...`
+
+Stop services:
+
+```bash
+docker compose down
+```
+
+## Reverse Proxy vs API Gateway
+
+- **Reverse proxy (Nginx)**: forwards requests to backend services, hides internals, and can handle TLS/headers/basic routing.
+- **API gateway (Kong)**: does proxying plus API-specific controls like rate limiting, auth, quotas, request transforms, and analytics.
+
+In this project:
+
+- Nginx exposes one public endpoint on port `80`.
+- `/app/*` routes directly to Paylock (reverse proxy behavior).
+- `/gateway/*` routes through Kong first (gateway behavior).
 
 ## Project Structure
 
@@ -304,4 +347,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Built with ❤️ using Spring Boot WebFlux**
-
