@@ -25,6 +25,7 @@ public class JwtUtil {
     public String generateToken(User user) {
         return Jwts.builder()
                 .issuer("paylock-client")
+                .claim("iss", "paylock-client") // Add explicit "iss" claim to ensure the issuer appears in the JWT payload (some consumers expect the claim name exactly)
                 .subject(user.getId().toString())
                 .claim("role", user.getRole())
                 .issuedAt(new Date())
