@@ -20,4 +20,7 @@ public class PaylockConfigProperties {
 
     @Value("${expiry.check.interval")
     private String expiryCheckInterval;
+
+    @Value("${app.jwt.secret}")
+    private String jwtSecret;
 }

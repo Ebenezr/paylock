@@ -2,26 +2,35 @@ package com.blind.paylock.component;
 
 import com.blind.paylock.datalayer.model.User;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
 public class JwtUtil {
 
+
     private static final long EXPIRY_MS = 86400000; // 24h
-    private final SecretKey key = Jwts.SIG.HS256.key().build();
+    private final SecretKey key;
+
+    public JwtUtil(@Value("${app.jwt.secret}") String jwtSecret) {
+        this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+    }
 
     public String generateToken(User user) {
         return Jwts.builder()
-            .subject(user.getId().toString())
-            .claim("role", user.getRole())
-            .issuedAt(new Date())
-            .expiration(new Date(System.currentTimeMillis() + EXPIRY_MS))
-            .signWith(key)
-            .compact();
+                .issuer("paylock-client")
+                .subject(user.getId().toString())
+                .claim("role", user.getRole())
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + EXPIRY_MS))
+                .signWith(key)
+                .compact();
     }
 
     public Mono<String> extractUserId(String token) {

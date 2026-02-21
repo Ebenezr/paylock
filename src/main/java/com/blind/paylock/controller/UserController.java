@@ -45,63 +45,22 @@ public class UserController {
         return userService.listUsers();
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') and #userId != authentication.name")
     @PatchMapping("/{userId}/role")
     public Mono<ApiResponse<UserResponseDto>> changeUserRole(
             @PathVariable String userId,
             @Valid @RequestBody ChangeUserRoleRequestDto request
     ) {
-        // Prevent user from changing their own role
-        return ReactiveSecurityUtil.currentUserIdAsString()
-                .flatMap(currentId -> {
-                    if (currentId.equals(userId)) {
-                        return ResponseFactory.<UserResponseDto>errorMono(
-                                HttpStatus.BAD_REQUEST,
-                                "INVALID_ACTION",
-                                "Users cannot change their own role",
-                                ResponseFactory.newRequestRefId()
-                        );
-                    }
-                    return userService.changeUserRole(userId, request);
-                })
-                .switchIfEmpty(
-                        // If not authenticated, let the service/auth layer handle it
-                        ResponseFactory.<UserResponseDto>errorMono(
-                                HttpStatus.UNAUTHORIZED,
-                                "UNAUTHORIZED",
-                                "User not authenticated",
-                                ResponseFactory.newRequestRefId()
-                        )
-                );
+        return userService.changeUserRole(userId, request);
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') and #userId != authentication.name")
     @PatchMapping("/{userId}/status")
     public Mono<ApiResponse<UserResponseDto>> changeUserStatus(
             @PathVariable String userId,
             @RequestParam String status
     ) {
-        // Prevent user from disabling/changing their own status
-        return ReactiveSecurityUtil.currentUserIdAsString()
-                .flatMap(currentId -> {
-                    if (currentId.equals(userId)) {
-                        return ResponseFactory.<UserResponseDto>errorMono(
-                                HttpStatus.BAD_REQUEST,
-                                "INVALID_ACTION",
-                                "Users cannot change their own status",
-                                ResponseFactory.newRequestRefId()
-                        );
-                    }
-                    return userService.changeUserStatus(userId, status);
-                })
-                .switchIfEmpty(
-                        ResponseFactory.<UserResponseDto>errorMono(
-                                HttpStatus.UNAUTHORIZED,
-                                "UNAUTHORIZED",
-                                "User not authenticated",
-                                ResponseFactory.newRequestRefId()
-                        )
-                );
+        return userService.changeUserStatus(userId, status);
     }
 
     @PutMapping("/{userId}")

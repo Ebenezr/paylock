@@ -4,20 +4,47 @@ _transform: true
 services:
   - name: paylock-service
     url: http://paylock:8080
-    routes:
-      - name: paylock-api-route
-        paths:
-          - /api
-        strip_path: false
-        methods:
-          - GET
-          - POST
-          - PUT
-          - PATCH
-          - DELETE
-          - OPTIONS
+routes:
+  - name: auth-route
+    paths:
+      - /api/v1/auth
+    strip_path: false
+
+  - name: registration-route
+    paths:
+      - /api/v1/users
+    methods:
+      - POST
+    strip_path: false
+
+  - name: protected-route
+    paths:
+      - /api
+    strip_path: false
+
+consumers:
+  - username: paylock-client
+    jwt_secrets:
+      - key: paylock-client
+        secret: 9hucogN6halWRWBSZ4TRLEAIzRhucogN6haaSyCAHs1nlWR_1nlWRucogN6ha1nk2j
 
 plugins:
+  # 🔒 JWT only on protected route
+  - name: jwt
+    route: protected-route
+    config:
+      secret_is_base64: false
+      key_claim_name: iss
+
+  # Inject headers only on protected route
+  - name: request-transformer
+    route: protected-route
+    config:
+      add:
+        headers:
+          - "X-User-Id:$(jwt.claims.sub)"
+          - "X-User-Role:$(jwt.claims.role)"
+
   - name: rate-limiting
     service: paylock-service
     config:
