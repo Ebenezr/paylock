@@ -9,29 +9,37 @@ import com.blind.paylock.service.AuthService;
 import com.blind.paylock.utils.apis.ApiResponse;
 import com.blind.paylock.utils.apis.ResponseFactory;
 import com.blind.paylock.utils.enums.UserStatus;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDateTime;
+
 @Service
-@RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
+    LocalDateTime startTime = LocalDateTime.now();
+
+    public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
+    }
+
     @Override
     public Mono<ApiResponse<LoginResponseDto>> login(
             LoginRequestDto request,
             String requestRefId
     ) {
-        long startTime = System.currentTimeMillis();
+
 
         PaylockLogManager.info(requestRefId,
-                "AUTH_LOGIN_ENTRY",
+                "ENTRY_AUTH_LOGIN",
                 PaylockLogManager.processDuration(startTime),
                 "REQUEST_RECEIVED");
 
@@ -42,9 +50,9 @@ public class AuthServiceImpl implements AuthService {
 
                     PaylockLogManager.error(
                             requestRefId,
-                            "AUTH_LOGIN",
+                            "AUTH_LOGIN_ERROR",
                             PaylockLogManager.processDuration(startTime),
-                            "INVALID_PASSWORD"
+                            "AUTH_LOGIN_RESPONSE_INVALID_CREDENTIALS"
                     );
 
                     return ResponseFactory.<LoginResponseDto>errorMono(
@@ -59,7 +67,7 @@ public class AuthServiceImpl implements AuthService {
 
                     PaylockLogManager.error(
                             requestRefId,
-                            "AUTH_LOGIN",
+                            "AUTH_LOGIN_ERROR",
                             PaylockLogManager.processDuration(startTime),
                             "USER_DISABLED"
                     );
@@ -76,7 +84,7 @@ public class AuthServiceImpl implements AuthService {
 
                 PaylockLogManager.info(
                         requestRefId,
-                        "AUTH_LOGIN",
+                        "AUTH_LOGIN_SUCCESS",
                         PaylockLogManager.processDuration(startTime),
                         "LOGIN_SUCCESS"
                 );
@@ -93,7 +101,7 @@ public class AuthServiceImpl implements AuthService {
                 .switchIfEmpty(Mono.defer(() -> {
                     PaylockLogManager.error(
                             requestRefId,
-                            "AUTH_LOGIN",
+                            "AUTH_LOGIN_ERROR",
                             PaylockLogManager.processDuration(startTime),
                             "USER_NOT_FOUND"
                     );
@@ -107,7 +115,7 @@ public class AuthServiceImpl implements AuthService {
             )).doOnError(error ->
                                 PaylockLogManager.error(
                                         requestRefId,
-                                        "AUTH_LOGIN",
+                                        "AUTH_LOGIN_ERROR",
                                         PaylockLogManager.processDuration(startTime),
                                         "SYSTEM_ERROR: " + error.getMessage()
                                 )

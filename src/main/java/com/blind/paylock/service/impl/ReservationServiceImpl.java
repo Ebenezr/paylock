@@ -1,5 +1,6 @@
 package com.blind.paylock.service.impl;
 
+import com.blind.paylock.component.PaylockLogManager;
 import com.blind.paylock.component.TicketIssuer;
 import com.blind.paylock.component.WalletProcessor;
 import com.blind.paylock.config.PaylockConfigProperties;
@@ -18,7 +19,6 @@ import com.blind.paylock.utils.apis.ApiResponse;
 import com.blind.paylock.utils.apis.ResponseFactory;
 import com.blind.paylock.utils.enums.EventStatus;
 import com.blind.paylock.utils.enums.ReservationStatus;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class ReservationServiceImpl implements ReservationService {
 
     private final ReservationRepository reservationRepository;
@@ -40,6 +39,17 @@ public class ReservationServiceImpl implements ReservationService {
     private final TicketIssuer ticketIssuer;
 
 
+    LocalDateTime startTime = LocalDateTime.now();
+
+    public ReservationServiceImpl(ReservationRepository reservationRepository, TicketTypeRepository ticketTypeRepository, EventRepository eventRepository, WalletProcessor walletProcessor, PaylockConfigProperties properties, TicketIssuer ticketIssuer) {
+        this.reservationRepository = reservationRepository;
+        this.ticketTypeRepository = ticketTypeRepository;
+        this.eventRepository = eventRepository;
+        this.walletProcessor = walletProcessor;
+        this.properties = properties;
+        this.ticketIssuer = ticketIssuer;
+    }
+
     @Override
     public Mono<ApiResponse<ReservationResponseDto>> createReservationWithFirstPayment(
             ReservationCreateRequestDto request
@@ -49,11 +59,27 @@ public class ReservationServiceImpl implements ReservationService {
         return ReactiveSecurityUtil.currentUserId()
             .flatMap(userId ->
                 ticketTypeRepository.findById(UUID.fromString(request.getTicketTypeId()))
-                    .switchIfEmpty(Mono.error(new NotFoundException("Ticket type not found")))
+                    .switchIfEmpty(Mono.defer(() -> {
+                        PaylockLogManager.error(
+                                requestRefId,
+                                "CREATE_RESERVATION_ERROR",
+                                PaylockLogManager.processDuration(startTime),
+                                "TICKET_TYPE_NOT_FOUND"
+                        );
+                        return Mono.error(new NotFoundException("Ticket type not found"));
+                    }))
                     .flatMap(ticketType ->
                         eventRepository.findById(ticketType.getEventId())
                             .filter(e -> e.getStatus() == EventStatus.PUBLISHED)
-                            .switchIfEmpty(Mono.error(new InvalidStateException("Event not published")))
+                            .switchIfEmpty(Mono.defer(() -> {
+                                PaylockLogManager.error(
+                                        requestRefId,
+                                        "CREATE_RESERVATION_ERROR",
+                                        PaylockLogManager.processDuration(startTime),
+                                        "EVENT_NOT_PUBLISHED"
+                                );
+                                return Mono.error(new InvalidStateException("Event not published"));
+                            }))
                             .flatMap(event -> {
 
                                 BigDecimal total =
@@ -69,6 +95,12 @@ public class ReservationServiceImpl implements ReservationService {
                                         request.getFirstPayment().compareTo(thresholdAmount) >= 0;
 
                                 if (!meetsThreshold) {
+                                    PaylockLogManager.error(
+                                            requestRefId,
+                                            "CREATE_RESERVATION_ERROR",
+                                            PaylockLogManager.processDuration(startTime),
+                                            "INSUFFICIENT_FIRST_PAYMENT"
+                                    );
                                     return Mono.error(
                                             new InvalidStateException(
                                                     "Minimum payment to reserve tickets is "
@@ -77,8 +109,13 @@ public class ReservationServiceImpl implements ReservationService {
                                     );
                                 }
 
-
                                 if (request.getFirstPayment().compareTo(total) > 0) {
+                                    PaylockLogManager.error(
+                                            requestRefId,
+                                            "CREATE_RESERVATION_ERROR",
+                                            PaylockLogManager.processDuration(startTime),
+                                            "OVERPAYMENT"
+                                    );
                                     return Mono.error(new InvalidStateException("Overpayment not allowed"));
                                 }
 
@@ -91,6 +128,12 @@ public class ReservationServiceImpl implements ReservationService {
                                             int totalRequestedTickets = existingTickets + request.getQuantity();
 
                                             if (totalRequestedTickets > 3) {
+                                                PaylockLogManager.error(
+                                                        requestRefId,
+                                                        "CREATE_RESERVATION_ERROR",
+                                                        PaylockLogManager.processDuration(startTime),
+                                                        "MAX_TICKETS_EXCEEDED"
+                                                );
                                                 int remainingAllowed = 3 - existingTickets;
                                                 return Mono.error(
                                                         new InvalidStateException(
@@ -109,6 +152,12 @@ public class ReservationServiceImpl implements ReservationService {
                                                                 ticketType.getTotalQuantity() - reserved;
 
                                                         if (available < request.getQuantity()) {
+                                                            PaylockLogManager.error(
+                                                                    requestRefId,
+                                                                    "CREATE_RESERVATION_ERROR",
+                                                                    PaylockLogManager.processDuration(startTime),
+                                                                    "NOT_ENOUGH_TICKETS"
+                                                            );
                                                             return Mono.error(
                                                                     new InvalidStateException("Not enough tickets available")
                                                             );
@@ -145,9 +194,15 @@ public class ReservationServiceImpl implements ReservationService {
                             })
                     )
             )
-            .flatMap(r ->
-                ResponseFactory.success(map(r), requestRefId)
-            );
+            .flatMap(r -> {
+                PaylockLogManager.info(
+                        requestRefId,
+                        "CREATE_RESERVATION",
+                        PaylockLogManager.processDuration(startTime),
+                        "RESERVATION_CREATED"
+                );
+                return ResponseFactory.success(map(r), requestRefId);
+            });
     }
 
     @Override
@@ -162,10 +217,24 @@ public class ReservationServiceImpl implements ReservationService {
             .flatMap(userId ->
                 reservationRepository.findById(reservationUuid)
                     .filter(r -> r.getUserId().equals(userId))
-                    .switchIfEmpty(Mono.error(new NotFoundException("Reservation not found")))
+                    .switchIfEmpty(Mono.defer(() -> {
+                        PaylockLogManager.error(
+                                requestRefId,
+                                "MAKE_PAYMENT_ERROR",
+                                PaylockLogManager.processDuration(startTime),
+                                "RESERVATION_NOT_FOUND"
+                        );
+                        return Mono.error(new NotFoundException("Reservation not found"));
+                    }))
                     .flatMap(r -> {
 
                         if (r.getStatus() != ReservationStatus.PARTIALLY_PAID) {
+                            PaylockLogManager.error(
+                                    requestRefId,
+                                    "MAKE_PAYMENT_ERROR",
+                                    PaylockLogManager.processDuration(startTime),
+                                    "INVALID_RESERVATION_STATE"
+                            );
                             return Mono.error(new InvalidStateException("Invalid reservation state"));
                         }
 
@@ -173,6 +242,12 @@ public class ReservationServiceImpl implements ReservationService {
                             r.getAmountPaid().add(request.getAmount());
 
                         if (newPaid.compareTo(r.getTotalAmount()) > 0) {
+                            PaylockLogManager.error(
+                                    requestRefId,
+                                    "MAKE_PAYMENT_ERROR",
+                                    PaylockLogManager.processDuration(startTime),
+                                    "OVERPAYMENT"
+                            );
                             return Mono.error(new InvalidStateException("Overpayment not allowed"));
                         }
 
@@ -206,9 +281,15 @@ public class ReservationServiceImpl implements ReservationService {
                                 });
                     })
             )
-                .flatMap(r ->
-                        ResponseFactory.success(map(r), requestRefId)
-                );
+            .flatMap(r -> {
+                    PaylockLogManager.info(
+                            requestRefId,
+                            "MAKE_PAYMENT",
+                            PaylockLogManager.processDuration(startTime),
+                            "PAYMENT_MADE"
+                    );
+                    return ResponseFactory.success(map(r), requestRefId);
+                });
     }
 
     @Override
@@ -217,67 +298,96 @@ public class ReservationServiceImpl implements ReservationService {
         UUID reservationUuid = UUID.fromString(reservationId);
 
         return ReactiveSecurityUtil.currentUserId()
-                .flatMap(userId ->
-                        reservationRepository.findById(reservationUuid)
-                                .filter(r -> r.getUserId().equals(userId))
-                                .switchIfEmpty(Mono.error(
-                                        new NotFoundException("Reservation not found")
-                                ))
-                                .flatMap(r -> {
+                 .flatMap(userId ->
+                         reservationRepository.findById(reservationUuid)
+                                 .filter(r -> r.getUserId().equals(userId))
+                                 .switchIfEmpty(Mono.defer(() -> {
+                                         PaylockLogManager.error(
+                                                 requestRefId,
+                                                 "CANCEL_RESERVATION_ERROR",
+                                                 PaylockLogManager.processDuration(startTime),
+                                                 "RESERVATION_NOT_FOUND"
+                                         );
+                                         return Mono.error(new NotFoundException("Reservation not found"));
+                                 }))
+                                 .flatMap(r -> {
 
-                                    if (r.getStatus() == ReservationStatus.PAID) {
-                                        return Mono.error(
-                                                new InvalidStateException(
-                                                        "Paid reservations cannot be canceled"
-                                                )
+                                     if (r.getStatus() == ReservationStatus.PAID) {
+                                        PaylockLogManager.error(
+                                                requestRefId,
+                                                "CANCEL_RESERVATION_ERROR",
+                                                PaylockLogManager.processDuration(startTime),
+                                                "PAID_RESERVATION_CANNOT_BE_CANCELLED"
                                         );
-                                    }
+                                         return Mono.error(
+                                                 new InvalidStateException(
+                                                         "Paid reservations cannot be canceled"
+                                                 )
+                                         );
+                                     }
 
-                                    if (r.getStatus() == ReservationStatus.CANCELED
-                                            || r.getStatus() == ReservationStatus.EXPIRED) {
-                                        return Mono.error(
-                                                new InvalidStateException(
-                                                        "Reservation already closed"
-                                                )
+                                     if (r.getStatus() == ReservationStatus.CANCELED
+                                             || r.getStatus() == ReservationStatus.EXPIRED) {
+                                        PaylockLogManager.error(
+                                                requestRefId,
+                                                "CANCEL_RESERVATION_ERROR",
+                                                PaylockLogManager.processDuration(startTime),
+                                                "RESERVATION_ALREADY_CLOSED"
                                         );
-                                    }
+                                         return Mono.error(
+                                                 new InvalidStateException(
+                                                         "Reservation already closed"
+                                                 )
+                                         );
+                                     }
 
-                                    BigDecimal cancellationFee =
-                                            r.getAmountPaid()
-                                                    .multiply(
-                                                            BigDecimal.valueOf(
-                                                                    Long.parseLong(properties.getCancellationFeePercent())
-                                                            )
-                                                    )
-                                                    .divide(BigDecimal.valueOf(100));
+                                     BigDecimal cancellationFee =
+                                             r.getAmountPaid()
+                                                     .multiply(
+                                                             BigDecimal.valueOf(
+                                                                     Long.parseLong(properties.getCancellationFeePercent())
+                                                             )
+                                                     )
+                                                     .divide(BigDecimal.valueOf(100));
 
-                                    BigDecimal refundAmount =
-                                            r.getAmountPaid().subtract(cancellationFee);
+                                     BigDecimal refundAmount =
+                                             r.getAmountPaid().subtract(cancellationFee);
 
-                                    Reservation canceled =
-                                            r.toBuilder()
-                                                    .status(ReservationStatus.CANCELED)
-                                                    .isNew(false)
-                                                    .build();
+                                     Reservation canceled =
+                                             r.toBuilder()
+                                                     .status(ReservationStatus.CANCELED)
+                                                     .isNew(false)
+                                                     .build();
 
-                                    Mono<Void> refundFlow =
-                                            refundAmount.compareTo(BigDecimal.ZERO) > 0
-                                                    ? walletProcessor.credit(
-                                                    userId,
-                                                    refundAmount,
-                                                    "RESERVATION_CANCEL",
-                                                    reservationId
-                                            )
-                                                    : Mono.empty();
+                                     Mono<Void> refundFlow =
+                                             refundAmount.compareTo(BigDecimal.ZERO) > 0
+                                                     ? walletProcessor.credit(
+                                                     userId,
+                                                     refundAmount,
+                                                     "RESERVATION_CANCEL",
+                                                     reservationId
+                                             )
+                                                     : Mono.empty();
 
-                                    return refundFlow
-                                            .then(reservationRepository.save(canceled))
-                                            .then();
-                                })
-                )
-                .then(ResponseFactory.success(null, requestRefId));
+                                     return refundFlow
+                                             .then(reservationRepository.save(canceled))
+                                             .then();
+                                 })
+                 )
+                .then(ResponseFactory.<Void>success(null, requestRefId))
+                .doOnSuccess(ignored -> PaylockLogManager.info(
+                        requestRefId,
+                        "CANCEL_RESERVATION",
+                        PaylockLogManager.processDuration(startTime),
+                        "RESERVATION_CANCELLED"
+                ))
+                .doOnError(err -> PaylockLogManager.error(
+                        requestRefId,
+                        "CANCEL_RESERVATION_ERROR",
+                        PaylockLogManager.processDuration(startTime),
+                        err.getMessage()
+                ));
     }
-
 
     @Override
     public Mono<ApiResponse<ReservationResponseDto>> getReservation(
@@ -291,16 +401,30 @@ public class ReservationServiceImpl implements ReservationService {
                 reservationRepository.findById(reservationUuid)
                     .filter(r -> r.getUserId().equals(userId))
             )
-            .flatMap(r ->
-                ResponseFactory.success(map(r), requestRefId)
-            )
+            .flatMap(r -> {
+                PaylockLogManager.info(
+                        requestRefId,
+                        "GET_RESERVATION",
+                        PaylockLogManager.processDuration(startTime),
+                        "RESERVATION_FETCHED"
+                );
+                return ResponseFactory.success(map(r), requestRefId);
+            })
             .switchIfEmpty(
-                ResponseFactory.errorMono(
-                    HttpStatus.NOT_FOUND,
-                    "RESERVATION_NOT_FOUND",
-                    "Reservation not found",
-                    requestRefId
-                )
+                Mono.defer(() -> {
+                    PaylockLogManager.error(
+                            requestRefId,
+                            "GET_RESERVATION_ERROR",
+                            PaylockLogManager.processDuration(startTime),
+                            "RESERVATION_NOT_FOUND"
+                    );
+                    return ResponseFactory.errorMono(
+                        HttpStatus.NOT_FOUND,
+                        "RESERVATION_NOT_FOUND",
+                        "Reservation not found",
+                        requestRefId
+                    );
+                })
             );
     }
 
@@ -317,9 +441,15 @@ public class ReservationServiceImpl implements ReservationService {
             )
             .map(this::map)
             .collectList()
-            .flatMap(list ->
-                ResponseFactory.success(list, requestRefId)
-            );
+            .flatMap(list -> {
+                PaylockLogManager.info(
+                        requestRefId,
+                        "LIST_USER_RESERVATIONS",
+                        PaylockLogManager.processDuration(startTime),
+                        "USER_RESERVATIONS_LISTED"
+                );
+                return ResponseFactory.success(list, requestRefId);
+            });
     }
 
     private ReservationResponseDto map(Reservation r) {
@@ -333,4 +463,4 @@ public class ReservationServiceImpl implements ReservationService {
             .expiryDate(r.getExpiryDate())
             .build();
     }
-}
+ }

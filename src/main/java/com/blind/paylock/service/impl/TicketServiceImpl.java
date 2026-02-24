@@ -1,5 +1,6 @@
 package com.blind.paylock.service.impl;
 
+import com.blind.paylock.component.PaylockLogManager;
 import com.blind.paylock.datalayer.dto.response.TicketResponseDto;
 import com.blind.paylock.repository.TicketRepository;
 import com.blind.paylock.service.TicketService;
@@ -7,18 +8,23 @@ import com.blind.paylock.utils.ReactiveSecurityUtil;
 import com.blind.paylock.utils.apis.ApiResponse;
 import com.blind.paylock.utils.apis.ResponseFactory;
 import com.blind.paylock.utils.enums.TicketStatus;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class TicketServiceImpl implements TicketService {
 
     private final TicketRepository ticketRepository;
+
+    LocalDateTime startTime = LocalDateTime.now();
+
+    public TicketServiceImpl(TicketRepository ticketRepository) {
+        this.ticketRepository = ticketRepository;
+    }
 
     @Override
     public Mono<ApiResponse<List<TicketResponseDto>>> listMyTickets() {
@@ -39,9 +45,15 @@ public class TicketServiceImpl implements TicketService {
                     .build()
             )
             .collectList()
-            .flatMap(list ->
-                ResponseFactory.success(list, requestRefId)
-            );
+            .flatMap(list -> {
+                PaylockLogManager.info(
+                        requestRefId,
+                        "LIST_MY_TICKETS",
+                        PaylockLogManager.processDuration(startTime),
+                        "MY_TICKETS_LISTED"
+                );
+                return ResponseFactory.success(list, requestRefId);
+            });
     }
 
     @Override
@@ -50,6 +62,18 @@ public class TicketServiceImpl implements TicketService {
         UUID eventUuid = UUID.fromString(eventId);
 
         return ticketRepository.invalidateByEventId(eventUuid)
-                .then(ResponseFactory.success(null, requestRefId));
+                .then(ResponseFactory.<Void>success(null, requestRefId))
+                .doOnSuccess(ignored -> PaylockLogManager.info(
+                        requestRefId,
+                        "INVALIDATE_TICKETS_BY_EVENT",
+                        PaylockLogManager.processDuration(startTime),
+                        "TICKETS_INVALIDATED"
+                ))
+                .doOnError(err -> PaylockLogManager.error(
+                        requestRefId,
+                        "INVALIDATE_TICKETS_BY_EVENT_ERROR",
+                        PaylockLogManager.processDuration(startTime),
+                        err.getMessage()
+                ));
     }
 }

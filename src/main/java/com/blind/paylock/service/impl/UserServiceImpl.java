@@ -1,5 +1,6 @@
 package com.blind.paylock.service.impl;
 
+import com.blind.paylock.component.PaylockLogManager;
 import com.blind.paylock.component.UserComponent;
 import com.blind.paylock.datalayer.dto.request.ChangeUserRoleRequestDto;
 import com.blind.paylock.datalayer.dto.request.UpdateUserRequestDto;
@@ -17,17 +18,16 @@ import com.blind.paylock.utils.apis.ApiResponse;
 import com.blind.paylock.utils.apis.ResponseFactory;
 import com.blind.paylock.utils.enums.UserRoles;
 import com.blind.paylock.utils.enums.UserStatus;
-import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 @Service
-@AllArgsConstructor
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
@@ -35,19 +35,46 @@ public class UserServiceImpl implements UserService {
     private final UserComponent userComponent;
     private final PasswordEncoder passwordEncoder;
 
+    public UserServiceImpl(UserRepository userRepository, WalletRepository walletRepository, UserComponent userComponent, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.walletRepository = walletRepository;
+        this.userComponent = userComponent;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    LocalDateTime startTime = LocalDateTime.now();
+
+
     @Override
     public Mono<ApiResponse<UserResponseDto>> registerUser(
             UserCreateRequestDto request,
             String requestRefId
+
+
     ) {
+        PaylockLogManager.info(requestRefId,
+        "ENTRY_USER_REGISTRATION",
+                PaylockLogManager.processDuration(startTime),
+                "REQUEST_RECEIVED"
+            );
+
         return userRepository.findByEmail(request.getEmail())
-                .flatMap(existing ->
-                        ResponseFactory.<UserResponseDto>errorMono(
+                .flatMap(existing ->{
+
+                        PaylockLogManager.error(
+                                requestRefId,
+                                "USER_REGISTRATION_ERROR",
+                                PaylockLogManager.processDuration(startTime),
+                                "USER_REGISTRATION_RESPONSE_USER_EXISTS"
+                        );
+
+                        return ResponseFactory.<UserResponseDto>errorMono(
                                 HttpStatus.CONFLICT,
                                 "USER_EXISTS",
                                 "User with this email already exists",
                                 requestRefId
-                        )
+                        );
+                }
                 )
                 .switchIfEmpty(Mono.defer(() -> {
 
@@ -60,8 +87,15 @@ public class UserServiceImpl implements UserService {
                             .flatMap(saved ->
                                     walletRepository.save(wallet).thenReturn(saved)
                             )
-                            .flatMap(saved ->
-                                    ResponseFactory.success(
+                            .flatMap(saved ->{
+
+                                PaylockLogManager.info(
+                                        requestRefId,
+                                        "USER_REGISTRATION_SUCCESS",
+                                        PaylockLogManager.processDuration(startTime),
+                                        "USER_REGISTRATION_RESPONSE_SUCCESS"
+                                );
+                                    return ResponseFactory.success(
                                             UserResponseDto.builder()
                                                     .userId(String.valueOf(saved.getId()))
                                                     .name(saved.getName())
@@ -70,7 +104,8 @@ public class UserServiceImpl implements UserService {
                                                     .role(saved.getRole())
                                                     .build(),
                                             requestRefId
-                                    )
+                                    );
+                            }
                             );
                 }));
     }
@@ -79,11 +114,25 @@ public class UserServiceImpl implements UserService {
     public Mono<ApiResponse<UserProfileResponseDto>> getUserProfile(
             String requestRefId
     ) {
+
+        PaylockLogManager.info(
+                requestRefId,
+                "ENTRY_GET_USER_PROFILE",
+                PaylockLogManager.processDuration(startTime),
+                "REQUEST_RECEIVED"
+        );
+
         return ReactiveSecurityUtil.currentUserId()
                 .flatMap(userId ->
                         userRepository.findById(userId)
-                                .flatMap(user ->
-                                        ResponseFactory.success(
+                                .flatMap(user ->{
+                                        PaylockLogManager.info(
+                                                requestRefId,
+                                                "GET_USER_PROFILE_SUCCESS",
+                                                PaylockLogManager.processDuration(startTime),
+                                                "USER_PROFILE_RESPONSE_SUCCESS"
+                                        );
+                                        return ResponseFactory.success(
                                                 UserProfileResponseDto.builder()
                                                         .userId(String.valueOf(user.getId()))
                                                         .name(user.getName())
@@ -93,16 +142,24 @@ public class UserServiceImpl implements UserService {
                                                         .createdAt(user.getCreatedAt())
                                                         .build(),
                                                 requestRefId
-                                        )
+                                        );
+    }
                                 )
                 )
-                .switchIfEmpty(
-                        ResponseFactory.errorMono(
-                                HttpStatus.UNAUTHORIZED,
-                                "UNAUTHORIZED",
-                                "User not authenticated",
-                                requestRefId
-                        )
+                .switchIfEmpty(Mono.defer(() -> {
+                            PaylockLogManager.error(
+                                    requestRefId,
+                                    "GET_USER_PROFILE_ERROR",
+                                    PaylockLogManager.processDuration(startTime),
+                                    "USER_PROFILE_RESPONSE_UNAUTHORIZED"
+                            );
+                            return ResponseFactory.errorMono(
+                                    HttpStatus.UNAUTHORIZED,
+                                    "UNAUTHORIZED",
+                                    "User not authenticated",
+                                    requestRefId
+                            );
+                        })
                 );
     }
 
@@ -112,14 +169,28 @@ public class UserServiceImpl implements UserService {
             String userId,
             ChangeUserRoleRequestDto request
     ) {
+        PaylockLogManager.info(
+                userId,
+                "ENTRY_CHANGE_USER_ROLE",
+                PaylockLogManager.processDuration(startTime),
+                "REQUEST_RECEIVED"
+        );
         return userRepository.findById(UUID.fromString(userId))
                 .switchIfEmpty(Mono.error(new UserNotFoundException()))
                 .flatMap(user -> {
                     user.setRole(UserRoles.valueOf(request.getRole()));
                     return userRepository.save(user);
                 })
-                .flatMap(savedUser -> ResponseFactory.success(
-                        UserResponseDto.builder()
+                .flatMap(savedUser -> {
+                        PaylockLogManager.info(
+                                userId,
+                                "CHANGE_USER_ROLE_SUCCESS",
+                                PaylockLogManager.processDuration(startTime),
+                                "CHANGE_USER_ROLE_RESPONSE_SUCCESS"
+                        );
+                        return ResponseFactory.success(
+
+                         UserResponseDto.builder()
                                 .userId(String.valueOf(savedUser.getId()))
                                 .name(savedUser.getName())
                                 .email(savedUser.getEmail())
@@ -127,7 +198,9 @@ public class UserServiceImpl implements UserService {
                                 .role(savedUser.getRole())
                                 .build(),
                         "Role updated successfully"
-                ));
+                );
+                }
+                );
     }
 
     @Override
@@ -135,22 +208,44 @@ public class UserServiceImpl implements UserService {
             String userId,
             String status
     ) {
+        PaylockLogManager.info(
+                userId,
+                "ENTRY_CHANGE_USER_STATUS",
+                PaylockLogManager.processDuration(startTime),
+                "REQUEST_RECEIVED"
+        );
+
         return userRepository.findById(UUID.fromString(userId))
                 .switchIfEmpty(Mono.error(new UserNotFoundException()))
                 .flatMap(user -> {
                     user.setStatus(UserStatus.valueOf(status));
+                    PaylockLogManager.info(
+                            userId,
+                            "USER_STATUS_UPDATED",
+                            PaylockLogManager.processDuration(startTime),
+                            "USER_STATUS_UPDATED_TO_" + status
+                    );
                     return userRepository.save(user);
                 })
-                .flatMap(savedUser -> ResponseFactory.success(
-                        UserResponseDto.builder()
-                                .userId(String.valueOf(savedUser.getId()))
-                                .name(savedUser.getName())
-                                .email(savedUser.getEmail())
-                                .status(savedUser.getStatus())
-                                .role(savedUser.getRole())
-                                .build(),
-                        "User disabled successfully"
-                ));
+                .flatMap(savedUser -> {
+                    PaylockLogManager.info(
+                            userId,
+                            "CHANGE_USER_STATUS_SUCCESS",
+                            PaylockLogManager.processDuration(startTime),
+                            "CHANGE_USER_STATUS_RESPONSE_SUCCESS"
+                    );
+
+                    return ResponseFactory.success(
+                            UserResponseDto.builder()
+                                    .userId(String.valueOf(savedUser.getId()))
+                                    .name(savedUser.getName())
+                                    .email(savedUser.getEmail())
+                                    .status(savedUser.getStatus())
+                                    .role(savedUser.getRole())
+                                    .build(),
+                            "User disabled successfully"
+                    );
+                });
     }
 
     @Override
@@ -158,6 +253,14 @@ public class UserServiceImpl implements UserService {
             String userId,
             UpdateUserRequestDto request
     ) {
+
+        PaylockLogManager.info(
+                userId,
+                "ENTRY_UPDATE_USER_DETAILS",
+                PaylockLogManager.processDuration(startTime),
+                "REQUEST_RECEIVED"
+        );
+
         return userRepository.findById(UUID.fromString(userId))
                 .switchIfEmpty(Mono.error(new UserNotFoundException()))
                 .flatMap(user -> {
@@ -170,31 +273,68 @@ public class UserServiceImpl implements UserService {
 
                     return userRepository.save(user);
                 })
-                .flatMap(savedUser -> ResponseFactory.success(
-                        UserResponseDto.builder()
-                                .userId(String.valueOf(savedUser.getId()))
-                                .name(savedUser.getName())
-                                .email(savedUser.getEmail())
-                                .status(savedUser.getStatus())
-                                .role(savedUser.getRole())
-                                .build(),
-                        "User updated successfully"
-                ));
+                .flatMap(savedUser -> {
+
+                    PaylockLogManager.info(
+                            userId,
+                            "UPDATE_USER_DETAILS_SUCCESS",
+                            PaylockLogManager.processDuration(startTime),
+                            "UPDATE_USER_DETAILS_RESPONSE_SUCCESS"
+                    );
+
+                    return ResponseFactory.success(
+                            UserResponseDto.builder()
+                                    .userId(String.valueOf(savedUser.getId()))
+                                    .name(savedUser.getName())
+                                    .email(savedUser.getEmail())
+                                    .status(savedUser.getStatus())
+                                    .role(savedUser.getRole())
+                                    .build(),
+                            "User updated successfully"
+                    );
+                });
     }
 
     @Override
     public Mono<ApiResponse<List<UserResponseDto>>> listUsers() {
+
+        PaylockLogManager.info(
+                "LIST_USERS",
+                "ENTRY_LIST_USERS",
+                PaylockLogManager.processDuration(startTime),
+                "REQUEST_RECEIVED"
+        );
+
         return userRepository.findAll()
-                .map(user -> UserResponseDto.builder()
-                        .userId(String.valueOf(user.getId()))
-                        .name(user.getName())
-                        .email(user.getEmail())
-                        .status(user.getStatus())
-                        .role(user.getRole())
-                        .build()
+                .map(user -> {
+
+                        PaylockLogManager.info(
+                                String.valueOf(user.getId()),
+                                "USER_LISTED",
+                                PaylockLogManager.processDuration(startTime),
+                                "USER_LISTED_SUCCESSFULLY"
+                        );
+
+                    return UserResponseDto.builder()
+                                    .userId(String.valueOf(user.getId()))
+                                    .name(user.getName())
+                                    .email(user.getEmail())
+                                    .status(user.getStatus())
+                                    .role(user.getRole())
+                                    .build();
+                        }
                 )
                 .collectList()
-                .flatMap(list -> ResponseFactory.success(list, ResponseFactory.newRequestRefId()));
+                .flatMap(list -> {
+                    PaylockLogManager.info(
+                            "LIST_USERS",
+                            "LIST_USERS_SUCCESS",
+                            PaylockLogManager.processDuration(startTime),
+                            "LIST_USERS_RESPONSE_SUCCESS"
+                    );
+                     return
+                    ResponseFactory.success(list, ResponseFactory.newRequestRefId());
+                });
     }
 
 
