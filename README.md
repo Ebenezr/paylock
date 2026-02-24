@@ -14,6 +14,7 @@ A reactive payment and ticketing platform built with Spring Boot WebFlux, design
 - [Getting Started](#getting-started)
 - [Project Structure](#project-structure)
 - [API Endpoints](#api-endpoints)
+- [OpenAPI / API documentation](#openapi--api-documentation)
 - [Configuration](#configuration)
 - [Testing](#testing)
 - [Contributing](#contributing)
@@ -33,6 +34,7 @@ A reactive payment and ticketing platform built with Spring Boot WebFlux, design
 | **Build Tool** | Maven |
 | **Testing** | JUnit 5, Testcontainers |
 | **Utilities** | Lombok |
+| **API Documentation** | OpenAPI (springdoc) — not included by default; instructions below to enable |
 
 ## Project Architecture
 
@@ -271,6 +273,85 @@ The API uses custom headers for request tracking:
 | `X-Organization` | Organization identifier |
 | `X-Channel` | Channel identifier |
 | `X-User-Id` | User identifier |
+
+## OpenAPI / API documentation
+
+This repository does not include an OpenAPI (springdoc) dependency by default. Below are simple, recommended ways to enable and view interactive API documentation for the WebFlux application.
+
+1) Enable runtime Swagger UI (recommended for development)
+
+- Add the Springdoc starter for WebFlux to `pom.xml` (use the latest stable version). Example dependency:
+
+```xml
+<dependency>
+  <groupId>org.springdoc</groupId>
+  <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+  <version>2.1.0</version> <!-- use latest available -->
+</dependency>
+```
+
+- Once the application runs, the OpenAPI JSON is exposed at:
+  - http://localhost:8080/v3/api-docs
+- The interactive Swagger UI will be available at:
+  - http://localhost:8080/swagger-ui/index.html
+
+- If you're running behind the included Nginx reverse proxy (default compose in this repo), use the proxied paths e.g.:
+  - http://localhost:8088/app/v3/api-docs
+  - http://localhost:8088/app/swagger-ui/index.html
+
+2) Generate static OpenAPI artifacts at build time (CI-friendly)
+
+You can also generate an OpenAPI JSON/YAML during your Maven build using the `springdoc-openapi-maven-plugin`. Example plugin configuration:
+
+```xml
+<plugin>
+  <groupId>org.springdoc</groupId>
+  <artifactId>springdoc-openapi-maven-plugin</artifactId>
+  <version>1.6.13</version> <!-- use latest available -->
+  <executions>
+    <execution>
+      <goals>
+        <goal>generate</goal>
+      </goals>
+    </execution>
+  </executions>
+  <configuration>
+    <!-- optional: output directory, format, groups -->
+    <outputFileName>openapi.json</outputFileName>
+  </configuration>
+</plugin>
+```
+
+After running `./mvnw package` with the plugin enabled, the generated `openapi.json` can be published to your docs site or included in releases.
+
+3) Common configuration notes
+
+- If your app uses a context path or is routed through Nginx/Kong, set the appropriate server config so links in the Swagger UI are correct. Example properties you may set in `application.properties`:
+
+```properties
+# If your app is served under a context path
+server.servlet.context-path=/app
+# springdoc property to tweak the swagger-ui path (if needed)
+springdoc.swagger-ui.path=/swagger-ui.html
+```
+
+- For secured endpoints (Spring Security), you may need to permit the swagger UI and API docs endpoints in `SecurityConfig` so the UI can load resources. Example (conceptual): allow `/v3/api-docs/**` and `/swagger-ui/**` in your WebFlux security configuration.
+
+4) Quick checks
+
+- Fetch raw OpenAPI JSON:
+
+```bash
+curl http://localhost:8080/v3/api-docs | jq .
+```
+
+- When using Docker/Nginx (default compose in this repo):
+
+```bash
+curl http://localhost:8088/app/v3/api-docs | jq .
+```
+
+If you want, I can open a PR that (a) adds the `springdoc-openapi-starter-webflux-ui` dependency to `pom.xml`, (b) configures a minimal `OpenApiConfig` class if needed, and (c) adds a small CI step to publish `openapi.json`. Ask and I'll prepare the changes and run the test build.
 
 ## Configuration
 

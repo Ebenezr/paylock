@@ -40,6 +40,13 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.GET, "/api/v1/events").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/events/*/availability").permitAll()
 
+                        // Allow OpenAPI / Swagger UI (raw and proxied under /app)
+                        .pathMatchers("/v3/api-docs/**").permitAll()
+                        .pathMatchers("/swagger-ui/**").permitAll()
+                        .pathMatchers("/swagger-ui.html").permitAll()
+                        .pathMatchers("/app/v3/api-docs/**").permitAll()
+                        .pathMatchers("/app/swagger-ui/**").permitAll()
+
                         // 🔒 everything else requires authenticated header
                         .anyExchange().authenticated()
                 )
