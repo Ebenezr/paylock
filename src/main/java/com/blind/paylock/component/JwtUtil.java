@@ -2,6 +2,7 @@ package com.blind.paylock.component;
 
 import com.blind.paylock.datalayer.model.User;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -34,13 +35,13 @@ public class JwtUtil {
                 .claim("role", user.getRole() != null ? user.getRole().name() : null)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + EXPIRY_MS))
-                .signWith(key) // use modern overload to avoid deprecated SignatureAlgorithm usage
+                .signWith(key, SignatureAlgorithm.HS256) // explicitly specify HS256 for clarity and compatibility
                 .compact();
     }
 
     public Mono<String> extractUserId(String token) {
         return Mono.fromCallable(() ->
-                // Use a parser API compatible with the project's JJWT setup
+                // Use the parser API compatible with the project's JJWT setup
                 Jwts.parser()
                         .setSigningKey(key)
                         .build()

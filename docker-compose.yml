@@ -46,8 +46,6 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-    healthcheck:
-      disable: true
     expose:
       - "8080"
     networks:

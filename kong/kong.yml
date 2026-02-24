@@ -26,14 +26,6 @@ services:
           - GET
         strip_path: false
 
-      # Public events route: add specific route so Kong matches it before the generic /api route
-      - name: public-docs-route
-        paths:
-          - /api/v1/api-docs
-        methods:
-          - GET
-        strip_path: false
-
       - name: protected-route
         paths:
           - /api
