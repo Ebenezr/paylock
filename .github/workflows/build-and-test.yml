@@ -63,6 +63,11 @@ jobs:
         cache-to: type=gha,mode=max
 
     - name: Test Docker image with compose
+      env:
+        DB_ROOT_PASSWORD: ${{ secrets.DB_ROOT_PASSWORD || 'password' }}
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD || 'paylock' }}
+        DB_NAME: ${{ secrets.DB_NAME || 'paylock' }}
+        JWT_SECRET: ${{ secrets.JWT_SECRET }}
       run: |
         docker compose up -d
         sleep 30
