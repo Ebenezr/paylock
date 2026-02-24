@@ -2,51 +2,67 @@ services:
   mysql:
     image: mysql:8.0
     container_name: paylock-mysql
+    platform: linux/amd64
+    restart: unless-stopped
     command: --default-authentication-plugin=mysql_native_password
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: paylock
-      MYSQL_USER: paylock
-      MYSQL_PASSWORD: paylock
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-password}
+      MYSQL_DATABASE: ${DB_NAME:-paylock}
+      MYSQL_USER: ${DB_USER:-paylock}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-paylock}
     ports:
-      - "3307:3306"
+      - "${DB_PORT:-3307}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       - ./sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ppassword"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD:-paylock}"]
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 15s
     networks:
       - paylock-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   paylock:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    container_name: paylock-app
+    platform: linux/amd64
+    restart: unless-stopped
     environment:
-      SPRING_R2DBC_URL: r2dbc:mysql://mysql:3306/paylock?sslMode=DISABLED
-      SPRING_R2DBC_USERNAME: root
-      SPRING_R2DBC_PASSWORD: password
-      APP_JWT_SECRET: "9hucogN6halWRWBSZ4TRLEAIzRhucogN6haaSyCAHs1nlWR_1nlWRucogN6ha1nk2j"
+      SPRING_R2DBC_URL: r2dbc:mysql://mysql:3306/${DB_NAME:-paylock}?sslMode=DISABLED
+      SPRING_R2DBC_USERNAME: ${DB_ROOT_USER:-root}
+      SPRING_R2DBC_PASSWORD: ${DB_ROOT_PASSWORD:-password}
+      APP_JWT_SECRET: ${JWT_SECRET}
     depends_on:
       mysql:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"'" ]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 40s
+      disable: true
     expose:
       - "8080"
     networks:
       - paylock-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   kong:
     image: kong:3.8
     container_name: paylock-kong
+    platform: linux/amd64
+    restart: unless-stopped
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
@@ -59,57 +75,46 @@ services:
       - ./kong/kong.yml:/etc/kong/kong.yml:ro
     depends_on:
       - paylock
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     expose:
       - "8000"
       - "8001"
     networks:
       - paylock-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nginx:
     image: nginx:1.27-alpine
     container_name: paylock-nginx
+    platform: linux/amd64
+    restart: unless-stopped
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - kong
-      - paylock
+      kong:
+        condition: service_healthy
     ports:
-      - "8088:80"
+      - "${NGINX_PORT:-8088}:80"
     networks:
       - paylock-network
-
-#  portainer:
-#    image: portainer/portainer-ce:latest
-#    container_name: paylock-portainer
-#    restart: unless-stopped
-#    environment:
-#      - TZ=UTC
-#    volumes:
-#      - /var/run/docker.sock:/var/run/docker.sock
-#      - portainer_data:/data
-#    ports:
-#      - "9000:9000"
-#      - "9443:9443"
-#    networks:
-#      - paylock-network
-
-#  uptime-kuma:
-#    image: louislam/uptime-kuma:1
-#    container_name: paylock-uptime-kuma
-#    restart: unless-stopped
-#    environment:
-#      - TZ=UTC
-#    volumes:
-#      - uptime_kuma_data:/app/data
-#    ports:
-#      - "3001:3001"
-#    networks:
-#      - paylock-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   mysql-data:
-  portainer_data:
-  uptime_kuma_data:
+    driver: local
 
 networks:
   paylock-network:
