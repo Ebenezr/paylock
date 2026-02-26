@@ -9,6 +9,7 @@ services:
         paths:
           - /api/v1/auth
         strip_path: false
+        regex_priority: 1
 
       - name: registration-route
         paths:
@@ -16,6 +17,7 @@ services:
         methods:
           - POST
         strip_path: false
+        regex_priority: 1
 
       # Public events route: add specific route so Kong matches it before the generic /api route
       - name: public-events-route
@@ -25,6 +27,7 @@ services:
         methods:
           - GET
         strip_path: false
+        regex_priority: 1
 
       - name: protected-route
         paths:
@@ -35,10 +38,11 @@ consumers:
   - username: paylock-client
     jwt_secrets:
       - key: paylock-client
-        secret: 9hucogN6halWRWBSZ4TRLEAIzRhucogN6haaSyCAHs1nlWR_1nlWRucogN6ha1nk2j
+        secret: "9hucogN6halWRWBSZ4TRLEAIzRhucogN6haaSyCAHs1nlWR_1nlWRucogN6ha1nk2j"
+        algorithm: HS256
 
 plugins:
-  # 🔒 JWT only on protected route
+  # JWT only on protected route
   - name: jwt
     route: protected-route
     config:
@@ -50,4 +54,25 @@ plugins:
     service: paylock-service
     config:
       minute: 120
-      policy: local
+      policy: redis
+      redis:
+        host: redis
+        port: 6379
+      limit_by: consumer
+
+  - name: proxy-cache
+    route: public-events-route
+    config:
+      strategy: memory
+      cache_ttl: 60
+      request_method:
+        - GET
+
+  - name: request-size-limiting
+    config:
+      allowed_payload_size: 10
+
+  - name: http-log
+    config:
+      http_endpoint: http://logstash:5001
+      method: POST

@@ -33,3 +33,5 @@ build/
 .vscode/
 .github/readme-blueprint-generator.prompt.md
 /.env
+/nginx/certs/server.crt
+/nginx/certs/server.key
